@@ -13,8 +13,6 @@ interface CardProps {
 }
 
 const Card: React.FC<CardProps> = ({ 
-  id, 
-  type, 
   title, 
   imageUrl, 
   rating, 
@@ -23,11 +21,11 @@ const Card: React.FC<CardProps> = ({
 }) => {
   return (
     <motion.div
-      layoutId={`${type}-${id}`}
       whileHover={{ y: -5 }}
       whileTap={{ scale: 0.98 }}
       className="h-full cursor-pointer group"
       onClick={onClick}
+      transition={{ duration: 0.2 }}
     >
       <div className="relative h-full rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow-md hover:shadow-xl transition-shadow duration-300">
         <div className="relative aspect-[2/3] overflow-hidden">

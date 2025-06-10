@@ -2,11 +2,12 @@ import React from 'react';
 
 type BadgeVariant = 'primary' | 'secondary' | 'accent' | 'success' | 'warning' | 'error' | 'neutral';
 
-interface BadgeProps {
+export interface BadgeProps {
   children: React.ReactNode;
   variant?: BadgeVariant;
   size?: 'small' | 'medium' | 'large';
   className?: string;
+  onClick?: () => void;
 }
 
 const Badge: React.FC<BadgeProps> = ({
@@ -14,6 +15,7 @@ const Badge: React.FC<BadgeProps> = ({
   variant = 'primary',
   size = 'medium',
   className = '',
+  onClick,
 }) => {
   const variantClasses = {
     primary: 'bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300',
@@ -32,7 +34,10 @@ const Badge: React.FC<BadgeProps> = ({
   };
 
   return (
-    <span className={`inline-flex items-center rounded-full font-medium ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}>
+    <span 
+      className={`inline-flex items-center rounded-full font-medium ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
       {children}
     </span>
   );

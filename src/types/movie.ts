@@ -16,4 +16,13 @@ export interface Movie {
   tagline?: string;
   original_language?: string;
   status?: string;
+  videos?: {
+    results: {
+      id: string;
+      key: string;
+      name: string;
+      site: string;
+      type: string;
+    }[];
+  };
 }

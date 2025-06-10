@@ -16,23 +16,14 @@ interface RecommendationContextType {
   isLoading: boolean;
   addToRecentlyViewed: (item: Movie | Book, type: 'movie' | 'book') => void;
   loadRecommendations: () => void;
+  selectedLanguage: string;
+  setSelectedLanguage: (language: string) => void;
+  getContentByLanguage: (contentType: 'movies' | 'books') => any[];
 }
 
 const RecommendationContext = createContext<RecommendationContextType | undefined>(undefined);
 
-export const useRecommendations = () => {
-  const context = useContext(RecommendationContext);
-  if (context === undefined) {
-    throw new Error('useRecommendations must be used within a RecommendationProvider');
-  }
-  return context;
-};
-
-interface RecommendationProviderProps {
-  children: ReactNode;
-}
-
-export const RecommendationProvider: React.FC<RecommendationProviderProps> = ({ children }) => {
+export const RecommendationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [recentlyViewed, setRecentlyViewed] = useState<{
     movies: Movie[];
     books: Book[];
@@ -46,6 +37,9 @@ export const RecommendationProvider: React.FC<RecommendationProviderProps> = ({ 
   const [popularMovies, setPopularMovies] = useState<Movie[]>([]);
   const [popularBooks, setPopularBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(
+    localStorage.getItem('preferredLanguage') || 'all'
+  );
 
   // Load recently viewed from localStorage on initial render
   useEffect(() => {
@@ -83,6 +77,11 @@ export const RecommendationProvider: React.FC<RecommendationProviderProps> = ({ 
     localStorage.setItem('recentlyViewedMovies', JSON.stringify(recentlyViewed.movies));
     localStorage.setItem('recentlyViewedBooks', JSON.stringify(recentlyViewed.books));
   }, [recentlyViewed]);
+
+  // Save language preference to local storage
+  useEffect(() => {
+    localStorage.setItem('preferredLanguage', selectedLanguage);
+  }, [selectedLanguage]);
 
   const addToRecentlyViewed = (item: Movie | Book, type: 'movie' | 'book') => {
     setRecentlyViewed(prev => {
@@ -151,6 +150,25 @@ export const RecommendationProvider: React.FC<RecommendationProviderProps> = ({ 
     }
   };
 
+  // Filter content by selected language
+  const getContentByLanguage = (contentType: 'movies' | 'books') => {
+    const allContent = contentType === 'movies' ? popularMovies : popularBooks;
+    
+    if (selectedLanguage === 'all') {
+      return allContent;
+    }
+    
+    return allContent.filter(item => {
+      if (contentType === 'movies') {
+        // Assuming Movie has a 'original_language' property
+        return (item as Movie).original_language === selectedLanguage;
+      } else {
+        // For Book, language is usually under volumeInfo.language
+        return (item as Book).volumeInfo?.language === selectedLanguage;
+      }
+    });
+  };
+
   const value = {
     recentlyViewed,
     recommendedMovies,
@@ -159,7 +177,10 @@ export const RecommendationProvider: React.FC<RecommendationProviderProps> = ({ 
     popularBooks,
     isLoading,
     addToRecentlyViewed,
-    loadRecommendations
+    loadRecommendations,
+    selectedLanguage,
+    setSelectedLanguage,
+    getContentByLanguage,
   };
 
   return (
@@ -167,4 +188,12 @@ export const RecommendationProvider: React.FC<RecommendationProviderProps> = ({ 
       {children}
     </RecommendationContext.Provider>
   );
+};
+
+export const useRecommendations = () => {
+  const context = useContext(RecommendationContext);
+  if (context === undefined) {
+    throw new Error('useRecommendations must be used within a RecommendationProvider');
+  }
+  return context;
 };

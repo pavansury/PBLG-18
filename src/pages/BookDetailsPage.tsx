@@ -50,7 +50,7 @@ const BookDetailsPage: React.FC = () => {
     };
     
     fetchBookDetails();
-  }, [id, addToRecentlyViewed]);
+  }, [id]); // Removed addToRecentlyViewed from dependencies to prevent infinite loop
 
   const handleBackClick = () => {
     navigate(-1);

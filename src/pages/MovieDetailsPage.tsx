@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Clock, Calendar, Users, ArrowLeft, PlayCircle, ListPlus } from 'lucide-react';
+import { Star, Clock, Calendar, Users, ArrowLeft, PlayCircle, TrendingUp, Globe, Info, Share2, Heart, Bookmark, X } from 'lucide-react';
 import { useRecommendations } from '../context/RecommendationContext';
 import { getMovieDetails, getMovieRecommendations } from '../services/movieService';
 import { Movie } from '../types/movie';
@@ -13,11 +13,61 @@ const MovieDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToRecentlyViewed } = useRecommendations();
+  const trailerModalRef = useRef<HTMLDivElement>(null);
   
   const [movie, setMovie] = useState<Movie | null>(null);
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showTrailer, setShowTrailer] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
+  const [trailerKey, setTrailerKey] = useState<string | null>(null);
+
+  // Check if movie is in favorites or watchlist from localStorage
+  useEffect(() => {
+    if (!id) return;
+    
+    // Check if movie is in favorites
+    const favoritesStr = localStorage.getItem('favoriteMovies');
+    if (favoritesStr) {
+      try {
+        const favorites = JSON.parse(favoritesStr);
+        setIsFavorite(favorites.includes(id));
+      } catch (e) {
+        console.error('Error parsing favorites from localStorage:', e);
+      }
+    }
+    
+    // Check if movie is in watchlist
+    const watchlistStr = localStorage.getItem('movieWatchlist');
+    if (watchlistStr) {
+      try {
+        const watchlist = JSON.parse(watchlistStr);
+        setInWatchlist(watchlist.includes(id));
+      } catch (e) {
+        console.error('Error parsing watchlist from localStorage:', e);
+      }
+    }
+  }, [id]);
+
+  // Handle click outside for modals
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (trailerModalRef.current && !trailerModalRef.current.contains(event.target as Node)) {
+        setShowTrailer(false);
+      }
+    };
+
+    if (showTrailer) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTrailer]);
 
   useEffect(() => {
     if (!id) return;
@@ -27,30 +77,131 @@ const MovieDetailsPage: React.FC = () => {
       setError(null);
       
       try {
+        // First try to get movie details
         const movieData = await getMovieDetails(id);
+        
+        // Validate that we have the essential movie data
+        if (!movieData || !movieData.title) {
+          throw new Error('Invalid movie data received');
+        }
+        
         setMovie(movieData);
         
-        // Add to recently viewed
+        // Check for trailer videos
+        if (movieData.videos && movieData.videos.results) {
+          const trailers = movieData.videos.results.filter(
+            (video: any) => video.type === 'Trailer' && video.site === 'YouTube'
+          );
+          
+          if (trailers.length > 0) {
+            setTrailerKey(trailers[0].key);
+          }
+        }
+        
+        // Only add to recently viewed if we have valid movie data
         addToRecentlyViewed(movieData, 'movie');
         
-        // Fetch recommendations
-        const recommendationsData = await getMovieRecommendations(id);
-        setRecommendations(recommendationsData);
-      } catch (err) {
-        setError('Failed to load movie details. Please try again.');
-        console.error(err);
+        // Then try to get recommendations (but don't fail if this doesn't work)
+        try {
+          const recommendationsData = await getMovieRecommendations(id);
+          if (recommendationsData && recommendationsData.length > 0) {
+            setRecommendations(recommendationsData);
+          }
+        } catch (recErr) {
+          // Just log the error but don't fail the whole page
+          console.warn('Could not load recommendations:', recErr);
+          // Set empty recommendations to avoid undefined errors
+          setRecommendations([]);
+        }
+      } catch (err: any) {
+        // Set a user-friendly error message
+        if (err.message && err.message.includes('not found')) {
+          setError(`Movie not found. The movie with ID ${id} may have been removed or doesn't exist.`);
+        } else if (err.message && err.message.includes('API key')) {
+          setError('API authorization error. Please try again later.');
+        } else {
+          setError('Failed to load movie details. Please try again later.');
+        }
+        console.error('Error fetching movie details:', err);
       } finally {
         setLoading(false);
       }
     };
     
     fetchMovieDetails();
-  }, [id, addToRecentlyViewed]);
+  }, [id]); // Removed addToRecentlyViewed from dependencies to prevent infinite loop
 
   const handleBackClick = () => {
     navigate(-1);
   };
 
+  const toggleFavorite = () => {
+    if (!id) return;
+    
+    const favoritesStr = localStorage.getItem('favoriteMovies');
+    let favorites: string[] = [];
+    
+    if (favoritesStr) {
+      try {
+        favorites = JSON.parse(favoritesStr);
+      } catch (e) {
+        console.error('Error parsing favorites from localStorage:', e);
+      }
+    }
+    
+    if (isFavorite) {
+      // Remove from favorites
+      favorites = favorites.filter(movieId => movieId !== id);
+    } else {
+      // Add to favorites
+      favorites.push(id);
+    }
+    
+    localStorage.setItem('favoriteMovies', JSON.stringify(favorites));
+    setIsFavorite(!isFavorite);
+  };
+  
+  const toggleWatchlist = () => {
+    if (!id) return;
+    
+    const watchlistStr = localStorage.getItem('movieWatchlist');
+    let watchlist: string[] = [];
+    
+    if (watchlistStr) {
+      try {
+        watchlist = JSON.parse(watchlistStr);
+      } catch (e) {
+        console.error('Error parsing watchlist from localStorage:', e);
+      }
+    }
+    
+    if (inWatchlist) {
+      // Remove from watchlist
+      watchlist = watchlist.filter(movieId => movieId !== id);
+    } else {
+      // Add to watchlist
+      watchlist.push(id);
+    }
+    
+    localStorage.setItem('movieWatchlist', JSON.stringify(watchlist));
+    setInWatchlist(!inWatchlist);
+  };
+  
+  const handleShareClick = () => {
+    setShowShareOptions(!showShareOptions);
+  };
+  
+  const handleTrailerClick = () => {
+    if (trailerKey) {
+      setShowTrailer(true);
+    }
+  };
+  
+  const closeTrailer = () => {
+    setShowTrailer(false);
+  };
+
+  // Show loading state with a minimum duration to prevent flicker
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-16">
@@ -59,6 +210,7 @@ const MovieDetailsPage: React.FC = () => {
     );
   }
 
+  // Show error state with a helpful message and back button
   if (error || !movie) {
     return (
       <div className="min-h-screen pt-16 px-4">
@@ -67,14 +219,22 @@ const MovieDetailsPage: React.FC = () => {
             Oops! Something went wrong
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {error || 'Movie not found.'}
+            {error || 'Movie not found. Please try another movie.'}
           </p>
-          <button
-            onClick={handleBackClick}
-            className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-md transition-colors"
-          >
-            Go Back
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={handleBackClick}
+              className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-md transition-colors"
+            >
+              Go Back
+            </button>
+            <button
+              onClick={() => navigate('/movies')}
+              className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-6 py-2 rounded-md transition-colors"
+            >
+              Browse All Movies
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -82,6 +242,29 @@ const MovieDetailsPage: React.FC = () => {
 
   return (
     <div className="pt-16 min-h-screen">
+      {/* Trailer Modal */}
+      {showTrailer && trailerKey && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+          <div ref={trailerModalRef} className="relative w-full max-w-4xl bg-black rounded-lg overflow-hidden">
+            <button 
+              onClick={closeTrailer}
+              className="absolute top-4 right-4 text-white bg-black bg-opacity-50 hover:bg-opacity-75 rounded-full p-2 transition-colors z-10"
+            >
+              <X size={24} />
+            </button>
+            <div className="relative pt-[56.25%]">
+              <iframe
+                className="absolute inset-0 w-full h-full"
+                src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1`}
+                title="Movie Trailer"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Movie Hero Section */}
       <section className="relative">
         {movie.backdrop_path && (
@@ -148,7 +331,7 @@ const MovieDetailsPage: React.FC = () => {
                   </div>
                 )}
                 
-                {movie.runtime > 0 && (
+                {movie.runtime && movie.runtime > 0 && (
                   <div className="flex items-center">
                     <Clock size={20} className="mr-1" />
                     <span>{movie.runtime} min</span>
@@ -184,15 +367,67 @@ const MovieDetailsPage: React.FC = () => {
               )}
               
               <div className="flex flex-wrap gap-3 mt-8">
-                <button className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-md transition-colors">
-                  <PlayCircle size={20} />
-                  <span>Watch Trailer</span>
+                {trailerKey && (
+                  <button 
+                    onClick={handleTrailerClick}
+                    className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-md transition-colors"
+                  >
+                    <PlayCircle size={20} />
+                    <span className="hidden sm:inline">Watch Trailer</span>
+                    <span className="sm:hidden">Trailer</span>
+                  </button>
+                )}
+                
+                <button 
+                  onClick={toggleWatchlist}
+                  className={`flex items-center gap-2 ${inWatchlist ? 'bg-green-600 hover:bg-green-700' : 'bg-white bg-opacity-20 hover:bg-opacity-30'} text-white px-6 py-3 rounded-md transition-colors`}
+                >
+                  <Bookmark size={20} />
+                  <span className="hidden sm:inline">{inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
+                  <span className="sm:hidden">{inWatchlist ? 'Saved' : 'Save'}</span>
                 </button>
                 
-                <button className="flex items-center gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-6 py-3 rounded-md transition-colors">
-                  <ListPlus size={20} />
-                  <span>Add to Watchlist</span>
+                <button 
+                  onClick={toggleFavorite}
+                  className={`flex items-center gap-2 ${isFavorite ? 'bg-red-600 hover:bg-red-700' : 'bg-white bg-opacity-20 hover:bg-opacity-30'} text-white px-6 py-3 rounded-md transition-colors`}
+                >
+                  <Heart size={20} className={isFavorite ? 'fill-white' : ''} />
+                  <span className="hidden sm:inline">{isFavorite ? 'Favorited' : 'Favorite'}</span>
                 </button>
+                
+                <div className="relative">
+                  <button 
+                    onClick={handleShareClick}
+                    className="flex items-center gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-6 py-3 rounded-md transition-colors"
+                  >
+                    <Share2 size={20} />
+                    <span className="hidden sm:inline">Share</span>
+                  </button>
+                  
+                  {showShareOptions && (
+                    <div className="absolute top-full mt-2 right-0 bg-white dark:bg-gray-800 rounded-md shadow-lg p-3 z-30">
+                      <div className="flex flex-col gap-2 min-w-[200px]">
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                            setShowShareOptions(false);
+                          }}
+                          className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors text-left"
+                        >
+                          Copy Link
+                        </button>
+                        <a 
+                          href={`https://twitter.com/intent/tweet?text=Check out ${movie.title}&url=${encodeURIComponent(window.location.href)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors text-left"
+                        >
+                          Share on Twitter
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </motion.div>
           </div>
@@ -200,9 +435,9 @@ const MovieDetailsPage: React.FC = () => {
       </section>
       
       {/* Additional Details */}
-      <section className="bg-white dark:bg-gray-800 py-12">
+      <section className="bg-white py-8 md:py-12">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
             {movie.vote_count > 0 && (
               <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
                 <h3 className="text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
@@ -274,81 +509,6 @@ const MovieDetailsPage: React.FC = () => {
       )}
     </div>
   );
-};
-
-// Define the missing imports
-function TrendingUp(props: any) {
-  return <lucide.TrendingUp {...props} />;
-}
-
-function Globe(props: any) {
-  return <lucide.Globe {...props} />;
-}
-
-function Info(props: any) {
-  return <lucide.Info {...props} />;
-}
-
-const lucide = {
-  TrendingUp: (props: any) => {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        {...props}
-      >
-        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-        <polyline points="16 7 22 7 22 13"></polyline>
-      </svg>
-    );
-  },
-  Globe: (props: any) => {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        {...props}
-      >
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="2" y1="12" x2="22" y2="12"></line>
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-      </svg>
-    );
-  },
-  Info: (props: any) => {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        {...props}
-      >
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="16" x2="12" y2="12"></line>
-        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-      </svg>
-    );
-  }
 };
 
 export default MovieDetailsPage;

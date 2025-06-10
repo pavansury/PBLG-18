@@ -44,9 +44,15 @@ const BooksPage: React.FC = () => {
   ];
 
   useEffect(() => {
-    // Check if there's a search query in the URL
+    // Check if there's a search query or filter parameter in the URL
     const params = new URLSearchParams(location.search);
     const query = params.get('query');
+    const filter = params.get('filter');
+    
+    // If filter=true is in the URL, open the filter panel
+    if (filter === 'true') {
+      setIsFilterOpen(true);
+    }
     
     if (query) {
       setSearchQuery(query);

@@ -36,7 +36,7 @@ const HomePage: React.FC = () => {
   return (
     <div className="pt-16">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-r from-primary-900 to-primary-700 text-white py-16 md:py-24">
+      <section className="relative bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white py-16 md:py-24">
         <div className="absolute inset-0 opacity-10 bg-repeat" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cubes.png')" }}></div>
         <div className="container mx-auto px-4 relative z-10">
           <motion.div 
@@ -61,7 +61,7 @@ const HomePage: React.FC = () => {
               <motion.button 
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/movies')}
+                onClick={() => navigate('/movies?filter=true')}
                 className="flex items-center gap-2 bg-white bg-opacity-20 backdrop-blur-sm hover:bg-opacity-30 px-6 py-3 rounded-full transition-all"
               >
                 <Film size={20} />
@@ -70,7 +70,7 @@ const HomePage: React.FC = () => {
               <motion.button 
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/books')}
+                onClick={() => navigate('/books?filter=true')}
                 className="flex items-center gap-2 bg-white bg-opacity-20 backdrop-blur-sm hover:bg-opacity-30 px-6 py-3 rounded-full transition-all"
               >
                 <BookOpen size={20} />
