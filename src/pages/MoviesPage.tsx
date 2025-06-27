@@ -1,249 +1,158 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Filter, SlidersHorizontal } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import { useRecommendations } from '../context/RecommendationContext';
 import MovieList from '../components/movies/MovieList';
-import SearchBar from '../components/common/SearchBar';
-import Badge from '../components/common/Badge';
-import { searchMovies, getPopularMovies, getMoviesByGenre } from '../services/movieService';
-import { Movie } from '../types/movie';
+import MovieFilterPanel from '../components/movies/MovieFilterPanel';
+import useMovies from '../hooks/useMovies';
+import type { IndianLanguage } from '../types/movie';
+import { useSearchParams } from 'react-router-dom';
 
 const MoviesPage: React.FC = () => {
-  const location = useLocation();
   const { popularMovies } = useRecommendations();
-  
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  // List of movie genres
-  const genres = [
-    { id: '28', name: 'Action' },
-    { id: '12', name: 'Adventure' },
-    { id: '16', name: 'Animation' },
-    { id: '35', name: 'Comedy' },
-    { id: '80', name: 'Crime' },
-    { id: '99', name: 'Documentary' },
-    { id: '18', name: 'Drama' },
-    { id: '10751', name: 'Family' },
-    { id: '14', name: 'Fantasy' },
-    { id: '36', name: 'History' },
-    { id: '27', name: 'Horror' },
-    { id: '10402', name: 'Music' },
-    { id: '9648', name: 'Mystery' },
-    { id: '10749', name: 'Romance' },
-    { id: '878', name: 'Science Fiction' },
-    { id: '10770', name: 'TV Movie' },
-    { id: '53', name: 'Thriller' },
-    { id: '10752', name: 'War' },
-    { id: '37', name: 'Western' },
-  ];
-
+  // Read ?query= from URL and sync with search state
+  const [searchParams] = useSearchParams();
   useEffect(() => {
-    // Check if there's a search query or filter parameter in the URL
-    const params = new URLSearchParams(location.search);
-    const query = params.get('query');
-    const filter = params.get('filter');
-    
-    // If filter=true is in the URL, open the filter panel
-    if (filter === 'true') {
-      setIsFilterOpen(true);
+    const q = searchParams.get('query') || '';
+    if (q && q !== searchQuery) {
+      setSearchQuery(q);
     }
-    
-    if (query) {
-      setSearchQuery(query);
-      handleSearch(query);
-    } else {
-      // Load popular movies if no search query
-      loadMovies();
-    }
-  }, [location.search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  
+  const {
+    movies,
+    loading,
+    error,
+    searchQuery,
+    setSearchQuery,
+    selectedGenres,
+    selectedLanguages,
+    toggleGenre,
+    toggleLanguage,
+    clearAllFilters,
+    loadMovies
+  } = useMovies(popularMovies);
 
-  useEffect(() => {
-    // When genre filters change, update results
-    if (selectedGenres.length > 0) {
-      handleGenreFilter();
-    } else if (searchQuery) {
-      handleSearch(searchQuery);
-    } else {
-      loadMovies();
-    }
-  }, [selectedGenres]);
-
-  const loadMovies = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      let results;
-      
-      // Use cached popular movies if available
-      if (popularMovies.length > 0) {
-        results = popularMovies;
-      } else {
-        results = await getPopularMovies();
-      }
-      
-      setMovies(results);
-    } catch (err) {
-      setError('Failed to load movies. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = async (query: string) => {
-    if (!query.trim()) {
-      loadMovies();
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    setSearchQuery(query);
-    
-    try {
-      const results = await searchMovies(query);
-      setMovies(results);
-    } catch (err) {
-      setError('Failed to search movies. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenreFilter = async () => {
-    if (selectedGenres.length === 0) {
-      loadMovies();
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const results = await getMoviesByGenre(selectedGenres.join(','));
-      setMovies(results);
-    } catch (err) {
-      setError('Failed to filter movies. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleGenre = (genreId: string) => {
-    setSelectedGenres(prev => 
-      prev.includes(genreId)
-        ? prev.filter(id => id !== genreId)
-        : [...prev, genreId]
-    );
-  };
-
-  const clearFilters = () => {
-    setSelectedGenres([]);
-    setSearchQuery('');
-    loadMovies();
+  const toggleFilter = () => {
+    setIsFilterOpen(!isFilterOpen);
   };
 
   return (
-    <div className="pt-16 min-h-screen">
-      <div className="bg-primary-900 dark:bg-primary-950 text-white py-8">
-        <div className="container mx-auto px-4">
-          <h1 className="text-2xl md:text-3xl font-bold mb-4">Movies</h1>
-          <div className="max-w-2xl">
-            <SearchBar 
-              onSearch={handleSearch} 
-              placeholder="Search for movies by title, actor, or director..."
-            />
-          </div>
-        </div>
-      </div>
-      
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-          <div>
-            {searchQuery && (
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                {loading ? 'Searching...' : `Results for "${searchQuery}"`}
-              </h2>
-            )}
-            
-            {selectedGenres.length > 0 && (
-              <div className="mb-4">
-                <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-2">
-                  Active Filters:
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {selectedGenres.map(genreId => {
-                    const genre = genres.find(g => g.id === genreId);
-                    return (
-                      <Badge 
-                        key={genreId} 
-                        variant="primary"
-                        className="cursor-pointer"
-                        onClick={() => toggleGenre(genreId)}
-                      >
-                        {genre?.name} ×
-                      </Badge>
-                    );
-                  })}
-                  <button 
-                    onClick={clearFilters}
-                    className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-                  >
-                    Clear all
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <button
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-          >
-            <Filter size={18} />
-            <span>Filter</span> 
-            <SlidersHorizontal size={16} />
-          </button>
-        </div>
-        
-        {isFilterOpen && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6"
-          >
-            <h3 className="font-medium text-gray-900 dark:text-white mb-3">Genres</h3>
-            <div className="flex flex-wrap gap-2">
-              {genres.map(genre => (
-                <Badge 
-                  key={genre.id} 
-                  variant={selectedGenres.includes(genre.id) ? 'primary' : 'neutral'}
-                  className="cursor-pointer"
-                  onClick={() => toggleGenre(genre.id)}
-                >
-                  {genre.name}
-                </Badge>
-              ))}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Movies</h1>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && loadMovies()}
+                placeholder="Search movies..."
+                className="w-full md:w-64 px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                onClick={loadMovies}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                aria-label="Search"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
             </div>
-          </motion.div>
+            <button
+              onClick={toggleFilter}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              <span>Filters</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Active Filters */}
+        {(selectedGenres.length > 0 || selectedLanguages.length > 0) && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {selectedGenres.map(genre => (
+              <div 
+                key={genre}
+                onClick={() => toggleGenre(genre)}
+                className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full text-sm font-medium cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+              >
+                {genre}
+              </div>
+            ))}
+            {selectedLanguages.map(language => {
+              const langName = language.charAt(0).toUpperCase() + language.slice(1);
+              return (
+                <div
+                  key={language}
+                  onClick={() => toggleLanguage(language as IndianLanguage)}
+                  className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full text-sm font-medium cursor-pointer hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
+                >
+                  {langName}
+                </div>
+              );
+            })}
+            <button
+              onClick={clearAllFilters}
+              className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+            >
+              Clear all
+            </button>
+          </div>
         )}
-        
-        <MovieList 
-          movies={movies} 
-          loading={loading}
-          error={error}
-        />
+
+        {/* Movie List */}
+        <div className="mt-8">
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <p className="text-red-500">{error}</p>
+              <button
+                onClick={loadMovies}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : movies.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No movies found matching your filters.</p>
+              <button
+                onClick={clearAllFilters}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              >
+                Clear Filters
+              </button>
+            </div>
+          ) : (
+            <MovieList 
+              movies={movies} 
+              loading={loading}
+              error={error}
+              title={searchQuery ? `Results for "${searchQuery}"` : 'Popular Movies'}
+            />
+          )}
+        </div>
       </div>
+
+      {/* Filter Panel */}
+      <MovieFilterPanel
+        isOpen={isFilterOpen}
+        selectedGenres={selectedGenres}
+        selectedLanguages={selectedLanguages}
+        onToggleGenre={toggleGenre}
+        onToggleLanguage={toggleLanguage}
+        onClearAll={clearAllFilters}
+        onClose={() => setIsFilterOpen(false)}
+      />
     </div>
   );
 };

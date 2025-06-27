@@ -2,9 +2,9 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { fetchMoviesByLanguage } from '../services/apiService';
-import LanguageSelector from '../components/LanguageSelector';
+import LanguageSelector from '../components/common/LanguageSelector';
 import { useRecommendations } from '../context/RecommendationContext';
-import BookCard from '../components/BookCard';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const IndianCinemaPage: React.FC = () => {
   const { selectedLanguage, setSelectedLanguage } = useRecommendations();
@@ -74,15 +74,6 @@ const IndianCinemaPage: React.FC = () => {
 
 export default IndianCinemaPage;
 
-const LoadingSpinner: React.FC = () => (
-  <div className="flex justify-center items-center">
-    <svg className="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-    </svg>
-    <span className="sr-only">Loading...</span>
-  </div>
-);
 
 const ErrorMessage: React.FC<{ error: string }> = ({ error }) => (
   <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-800 dark:text-red-200">
@@ -99,11 +90,11 @@ const MovieGrid: React.FC<{ movies: any[], page: number, setPage: (page: number)
         </div>
       ))}
     </div>
-    <Pagination movies={movies} page={page} setPage={setPage} />
+    <Pagination page={page} setPage={setPage} />
   </>
 );
 
-const Pagination: React.FC<{ movies: any[], page: number, setPage: (page: number) => void }> = ({ movies, page, setPage }) => (
+const Pagination: React.FC<{ page: number, setPage: (page: number) => void }> = ({ page, setPage }) => (
   <div className="flex justify-center mt-8 gap-2">
     <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="px-4 py-2 rounded-md bg-indigo-50 text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-indigo-900/30 dark:text-indigo-300">
       Previous

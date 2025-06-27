@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Movie } from '../types/movie';
 import { Book } from '../types/book';
 import { getPopularMovies, getMovieRecommendations } from '../services/movieService';
@@ -19,6 +19,8 @@ interface RecommendationContextType {
   selectedLanguage: string;
   setSelectedLanguage: (language: string) => void;
   getContentByLanguage: (contentType: 'movies' | 'books') => any[];
+  setMovies: (movies: Movie[]) => void;
+  setBooks: (books: Book[]) => void;
 }
 
 const RecommendationContext = createContext<RecommendationContextType | undefined>(undefined);
@@ -67,10 +69,12 @@ export const RecommendationProvider: React.FC<{ children: ReactNode }> = ({ chil
         console.error('Failed to parse recently viewed books from localStorage', error);
       }
     }
-    
-    // Load initial recommendations and popular content
-    loadRecommendations();
   }, []);
+
+  // Load recommendations on mount or when selectedLanguage changes
+  useEffect(() => {
+    loadRecommendations();
+  }, [selectedLanguage]);
 
   // Update localStorage when recently viewed changes
   useEffect(() => {
@@ -109,14 +113,17 @@ export const RecommendationProvider: React.FC<{ children: ReactNode }> = ({ chil
     });
   };
 
-  const loadRecommendations = async () => {
+  const loadRecommendations = useCallback(async () => {
     setIsLoading(true);
     
     try {
-      // Load popular content as a fallback
+      // Load popular content with selected language
+      const language = selectedLanguage === 'all' ? undefined : selectedLanguage;
+      console.log('Loading recommendations with language:', language || 'all');
+      
       const [moviesResponse, booksResponse] = await Promise.all([
-        getPopularMovies(),
-        getPopularBooks()
+        language ? getPopularMovies(language) : getPopularMovies(),
+        language ? getPopularBooks(language) : getPopularBooks()
       ]);
       
       setPopularMovies(moviesResponse);
@@ -148,7 +155,7 @@ export const RecommendationProvider: React.FC<{ children: ReactNode }> = ({ chil
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedLanguage, recentlyViewed]);
 
   // Filter content by selected language
   const getContentByLanguage = (contentType: 'movies' | 'books') => {
@@ -169,22 +176,24 @@ export const RecommendationProvider: React.FC<{ children: ReactNode }> = ({ chil
     });
   };
 
-  const value = {
-    recentlyViewed,
-    recommendedMovies,
-    recommendedBooks,
-    popularMovies,
-    popularBooks,
-    isLoading,
-    addToRecentlyViewed,
-    loadRecommendations,
-    selectedLanguage,
-    setSelectedLanguage,
-    getContentByLanguage,
-  };
-
   return (
-    <RecommendationContext.Provider value={value}>
+    <RecommendationContext.Provider
+      value={{
+        recentlyViewed,
+        recommendedMovies,
+        recommendedBooks,
+        popularMovies,
+        popularBooks,
+        isLoading,
+        addToRecentlyViewed,
+        loadRecommendations,
+        selectedLanguage,
+        setSelectedLanguage,
+        getContentByLanguage,
+        setMovies: setPopularMovies,
+        setBooks: setPopularBooks,
+      }}
+    >
       {children}
     </RecommendationContext.Provider>
   );
@@ -197,3 +206,5 @@ export const useRecommendations = () => {
   }
   return context;
 };
+
+export default RecommendationContext;

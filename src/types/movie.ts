@@ -1,3 +1,9 @@
+import type { IndianLanguage } from './language';
+import { INDIAN_LANGUAGES } from './language';
+
+export type { IndianLanguage };
+export { INDIAN_LANGUAGES };
+
 export interface Movie {
   id: string;
   title: string;
@@ -14,8 +20,12 @@ export interface Movie {
   }[];
   popularity: number;
   tagline?: string;
-  original_language?: string;
+  original_language?: IndianLanguage | string; // Primarily Indian language codes
   status?: string;
+  language_details?: {
+    name: string;
+    code: string;
+  };
   videos?: {
     results: {
       id: string;

@@ -1,3 +1,10 @@
+// Import Indian languages from shared language types
+import type { IndianLanguage } from './language';
+import { INDIAN_LANGUAGES } from './language';
+
+export type { IndianLanguage };
+export { INDIAN_LANGUAGES };
+
 export interface Book {
   id: string;
   volumeInfo?: {
@@ -15,7 +22,11 @@ export interface Book {
       smallThumbnail?: string;
       thumbnail?: string;
     };
-    language?: string;
+    language?: IndianLanguage | string; // Primarily Indian language codes
+    language_details?: {
+      name: string;
+      code: string;
+    };
     previewLink?: string;
     infoLink?: string;
     printType?: string;

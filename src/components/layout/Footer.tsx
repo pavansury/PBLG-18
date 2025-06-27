@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Github, Twitter, Linkedin, Mail } from 'lucide-react';
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
@@ -17,38 +16,8 @@ const Footer: React.FC = () => {
             <p className="mt-4 text-gray-600 dark:text-gray-400 text-sm">
               Discover your next favorite movie or book with our personalized recommendation system.
             </p>
-            <div className="flex mt-6 space-x-4">
-              <a 
-                href="#" 
-                className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                aria-label="GitHub"
-              >
-                <Github size={20} />
-              </a>
-              <a 
-                href="#" 
-                className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                aria-label="Twitter"
-              >
-                <Twitter size={20} />
-              </a>
-              <a 
-                href="#" 
-                className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                aria-label="LinkedIn"
-              >
-                <Linkedin size={20} />
-              </a>
-              <a 
-                href="mailto:contact@recommendx.com" 
-                className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                aria-label="Email"
-              >
-                <Mail size={20} />
-              </a>
-            </div>
+
           </div>
-          
           <div className="col-span-1">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-900 dark:text-white mb-4">Navigation</h3>
             <ul className="space-y-3">

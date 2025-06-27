@@ -1,25 +1,60 @@
 import axios from 'axios';
 import { Book } from '../types/book';
 
-const GOOGLE_BOOKS_API_KEY = 'AIzaSyAqOg-25YOaaa8kpZzELMIWTlj-P5odmRw';
+// Google Books API Configuration
+const GOOGLE_BOOKS_API_KEY = 'AIzaSyCQ5VA7wo15aWurVWn-6C_MRs1zQvkUUU8';
 const GOOGLE_BOOKS_API_URL = 'https://www.googleapis.com/books/v1/volumes';
 
-// Get popular books
-export const getPopularBooks = async (): Promise<Book[]> => {
+// Map our language codes to Google Books language codes
+const mapToGoogleBooksLanguage = (language: string): string => {
+  const languageMap: Record<string, string> = {
+    'hi': 'hi',    // Hindi
+    'ta': 'ta',    // Tamil
+    'te': 'te',    // Telugu
+    'kn': 'kn',    // Kannada
+    'ml': 'ml',    // Malayalam
+    'bn': 'bn',    // Bengali
+    'mr': 'mr',    // Marathi
+    'gu': 'gu',    // Gujarati
+    'pa': 'pa',    // Punjabi
+    'en': 'en'     // English
+  };
+  return languageMap[language] || 'en';
+};
+
+// Get popular books with optional language filter
+export const getPopularBooks = async (language?: string): Promise<Book[]> => {
   try {
-    // Since Google Books API doesn't have a direct "popular" endpoint,
-    // we'll use a combination of bestsellers and high ratings
-    const response = await axios.get(GOOGLE_BOOKS_API_URL, {
-      params: {
-        q: 'subject:fiction',
-        orderBy: 'relevance',
-        maxResults: 20,
-        key: GOOGLE_BOOKS_API_KEY
+    // Search for popular books in the specified language
+    const params: any = {
+      q: 'subject:fiction',
+      orderBy: 'relevance',
+      maxResults: 20,
+      key: GOOGLE_BOOKS_API_KEY,
+      printType: 'books',
+      filter: 'paid-ebooks',
+      langRestrict: language ? mapToGoogleBooksLanguage(language) : undefined
+    };
+    
+    console.log('Fetching books with params:', params);
+    
+    const response = await axios.get(GOOGLE_BOOKS_API_URL, { 
+      params,
+      paramsSerializer: (params) => {
+        return Object.entries(params)
+          .filter(([_, value]) => value !== undefined)
+          .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
+          .join('&');
       }
     });
     
-    // Google Books API returns an empty array if no items found, which is valid
-    return response.data.items || [];
+    if (!response.data?.items) {
+      console.log('No books found for the given criteria');
+      return [];
+    }
+    
+    console.log(`Fetched ${response.data.items.length} books`);
+    return response.data.items;
   } catch (error: any) {
     // Handle specific axios errors
     if (axios.isAxiosError(error)) {
@@ -45,18 +80,23 @@ export const getPopularBooks = async (): Promise<Book[]> => {
   }
 };
 
-// Search for books
-export const searchBooks = async (query: string): Promise<Book[]> => {
+// Search for books with optional language filter
+export const searchBooks = async (query: string, language?: string): Promise<Book[]> => {
   if (!query.trim()) return [];
   
   try {
-    const response = await axios.get(GOOGLE_BOOKS_API_URL, {
-      params: {
-        q: query,
-        maxResults: 20,
-        key: GOOGLE_BOOKS_API_KEY
-      }
-    });
+    const params: any = {
+      q: query,
+      maxResults: 20,
+      key: GOOGLE_BOOKS_API_KEY
+    };
+    
+    // Add language filter if provided
+    if (language) {
+      params.langRestrict = language;
+    }
+    
+    const response = await axios.get(GOOGLE_BOOKS_API_URL, { params });
     
     // Google Books API returns an empty array if no items found, which is valid
     return response.data.items || [];
@@ -238,8 +278,8 @@ export const getBookRecommendations = async (category: string, author: string): 
   throw lastError || new Error('Failed to fetch book recommendations after multiple attempts');
 };
 
-// Get books by category
-export const getBooksByCategory = async (category: string): Promise<Book[]> => {
+// Get books by category with optional language filter
+export const getBooksByCategory = async (category: string, language?: string): Promise<Book[]> => {
   // Number of retry attempts
   const maxRetries = 3;
   let retryCount = 0;
@@ -258,14 +298,21 @@ export const getBooksByCategory = async (category: string): Promise<Book[]> => {
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
       try {
-        const response = await axios.get(GOOGLE_BOOKS_API_URL, {
-          params: {
-            q: `subject:${category}`,
-            maxResults: 12, // Reduced from 20 to help with rate limiting
-            key: GOOGLE_BOOKS_API_KEY
-          },
-          signal: controller.signal
-        });
+        const params: any = {
+          q: `subject:${encodeURIComponent(category)}`,
+          orderBy: 'relevance',
+          maxResults: 20,
+          key: GOOGLE_BOOKS_API_KEY,
+          filter: 'paid-ebooks',
+          printType: 'books'
+        };
+        
+        // Add language filter if provided
+        if (language) {
+          params.langRestrict = language;
+        }
+        
+        const response = await axios.get(GOOGLE_BOOKS_API_URL, { params });
         
         // Clear the timeout since the request completed
         clearTimeout(timeoutId);

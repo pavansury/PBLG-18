@@ -1,247 +1,164 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Filter, SlidersHorizontal } from 'lucide-react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { Filter } from 'lucide-react';
 import { useRecommendations } from '../context/RecommendationContext';
+import { IndianLanguage } from '../types/book';
 import BookList from '../components/books/BookList';
-import SearchBar from '../components/common/SearchBar';
-import Badge from '../components/common/Badge';
-import { searchBooks, getPopularBooks, getBooksByCategory } from '../services/bookService';
-import { Book } from '../types/book';
+import BookFilterPanel from '../components/books/BookFilterPanel';
+import useBooks from '../hooks/useBooks';
+import { useSearchParams } from 'react-router-dom';
 
 const BooksPage: React.FC = () => {
-  const location = useLocation();
-  const { popularBooks } = useRecommendations();
-  
-  const [books, setBooks] = useState<Book[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const { recommendedBooks } = useRecommendations();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  // List of book categories
-  const categories = [
-    'Fiction',
-    'Fantasy',
-    'Science Fiction',
-    'Mystery',
-    'Thriller',
-    'Romance',
-    'Biography',
-    'History',
-    'Business',
-    'Self-Help',
-    'Science',
-    'Technology',
-    'Art',
-    'Philosophy',
-    'Poetry',
-    'Children',
-    'Young Adult',
-    'Cookbooks',
-    'Travel',
-  ];
-
+  // Sync search with URL query parameter
+  const [searchParams] = useSearchParams();
   useEffect(() => {
-    // Check if there's a search query or filter parameter in the URL
-    const params = new URLSearchParams(location.search);
-    const query = params.get('query');
-    const filter = params.get('filter');
-    
-    // If filter=true is in the URL, open the filter panel
-    if (filter === 'true') {
-      setIsFilterOpen(true);
+    const q = searchParams.get('query') || '';
+    if (q && q !== searchQuery) {
+      setSearchQuery(q);
     }
-    
-    if (query) {
-      setSearchQuery(query);
-      handleSearch(query);
-    } else {
-      // Load popular books if no search query
-      loadBooks();
-    }
-  }, [location.search]);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  
+  // Get popular books from context or fetch if not available
+  const popularBooks = useMemo(() => {
+    return recommendedBooks.length > 0 ? recommendedBooks : [];
+  }, [recommendedBooks]);
+  
+  // Use the books hook to manage state and actions
+  const {
+    books,
+    loading,
+    error,
+    searchQuery,
+    setSearchQuery,
+    selectedCategories,
+    selectedLanguages,
+    toggleCategory,
+    toggleLanguage,
+    clearAllFilters,
+    loadBooks
+  } = useBooks(popularBooks);
+  
+  // Toggle filter panel
+  const toggleFilter = useCallback(() => {
+    setIsFilterOpen(prev => !prev);
+  }, []);
+  
+  // Close filter panel when filters change
   useEffect(() => {
-    // When category filters change, update results
-    if (selectedCategories.length > 0) {
-      handleCategoryFilter();
-    } else if (searchQuery) {
-      handleSearch(searchQuery);
-    } else {
+    if (selectedCategories.length > 0 || selectedLanguages.length > 0) {
       loadBooks();
     }
-  }, [selectedCategories]);
-
-  const loadBooks = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      let results;
-      
-      // Use cached popular books if available
-      if (popularBooks.length > 0) {
-        results = popularBooks;
-      } else {
-        results = await getPopularBooks();
-      }
-      
-      setBooks(results);
-    } catch (err) {
-      setError('Failed to load books. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = async (query: string) => {
-    if (!query.trim()) {
-      loadBooks();
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    setSearchQuery(query);
-    
-    try {
-      const results = await searchBooks(query);
-      setBooks(results);
-    } catch (err) {
-      setError('Failed to search books. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCategoryFilter = async () => {
-    if (selectedCategories.length === 0) {
-      loadBooks();
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // For simplicity, use the first selected category
-      const category = selectedCategories[0];
-      const results = await getBooksByCategory(category);
-      setBooks(results);
-    } catch (err) {
-      setError('Failed to filter books. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleCategory = (category: string) => {
-    setSelectedCategories(prev => 
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
-    );
-  };
-
-  const clearFilters = () => {
-    setSelectedCategories([]);
-    setSearchQuery('');
-    loadBooks();
-  };
+  }, [selectedCategories, selectedLanguages, loadBooks]);
 
   return (
-    <div className="pt-16 min-h-screen">
-      <div className="bg-primary-900 dark:bg-primary-950 text-white py-8">
-        <div className="container mx-auto px-4">
-          <h1 className="text-2xl md:text-3xl font-bold mb-4">Books</h1>
-          <div className="max-w-2xl">
-            <SearchBar 
-              onSearch={handleSearch} 
-              placeholder="Search for books by title, author, or subject..."
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Books</h1>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && loadBooks()}
+              placeholder="Search books..."
+              className="w-full md:w-64 px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+            <button
+              onClick={loadBooks}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              aria-label="Search"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
           </div>
-        </div>
-      </div>
-      
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-          <div>
-            {searchQuery && (
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                {loading ? 'Searching...' : `Results for "${searchQuery}"`}
-              </h2>
-            )}
-            
-            {selectedCategories.length > 0 && (
-              <div className="mb-4">
-                <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-2">
-                  Active Filters:
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {selectedCategories.map(category => (
-                    <Badge 
-                      key={category} 
-                      variant="primary"
-                      className="cursor-pointer"
-                      onClick={() => toggleCategory(category)}
-                    >
-                      {category} ×
-                    </Badge>
-                  ))}
-                  <button 
-                    onClick={clearFilters}
-                    className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-                  >
-                    Clear all
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          
           <button
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+            onClick={toggleFilter}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+            aria-label="Open filters"
           >
-            <Filter size={18} />
-            <span>Filter</span> 
-            <SlidersHorizontal size={16} />
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+            {(selectedCategories.length > 0 || selectedLanguages.length > 0) && (
+              <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                {selectedCategories.length + selectedLanguages.length}
+              </span>
+            )}
           </button>
         </div>
-        
-        {isFilterOpen && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6"
-          >
-            <h3 className="font-medium text-gray-900 dark:text-white mb-3">Categories</h3>
-            <div className="flex flex-wrap gap-2">
-              {categories.map(category => (
-                <Badge 
-                  key={category} 
-                  variant={selectedCategories.includes(category) ? 'primary' : 'neutral'}
-                  className="cursor-pointer"
-                  onClick={() => toggleCategory(category)}
-                >
-                  {category}
-                </Badge>
-              ))}
+      </div>
+
+      {/* Filter Panel */}
+      <BookFilterPanel
+        isOpen={isFilterOpen}
+        selectedCategories={selectedCategories}
+        selectedLanguages={selectedLanguages}
+        onToggleCategory={toggleCategory}
+        onToggleLanguage={toggleLanguage}
+        onClearAll={clearAllFilters}
+        onClose={() => setIsFilterOpen(false)}
+      />
+
+      {/* Active Filters */}
+      {(selectedCategories.length > 0 || selectedLanguages.length > 0) && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {selectedCategories.map(category => (
+            <div 
+              key={category}
+              onClick={() => toggleCategory(category)}
+              className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full text-sm font-medium cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+            >
+              {category}
             </div>
-          </motion.div>
+          ))}
+          {selectedLanguages.map(language => {
+            const langName = language.charAt(0).toUpperCase() + language.slice(1);
+            return (
+              <div
+                key={language}
+                onClick={() => toggleLanguage(language as IndianLanguage)}
+                className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full text-sm font-medium cursor-pointer hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
+              >
+                {langName}
+              </div>
+            );
+          })}
+          <button
+            onClick={clearAllFilters}
+            className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="mt-8">
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-red-500 mb-4">{error}</p>
+            <button
+              onClick={loadBooks}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : books.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 dark:text-gray-400">No books found matching your filters.</p>
+          </div>
+        ) : (
+          <BookList books={books} loading={loading} error={error} />
         )}
-        
-        <BookList 
-          books={books} 
-          loading={loading}
-          error={error}
-        />
       </div>
     </div>
   );

@@ -9,9 +9,13 @@ import BooksPage from './pages/BooksPage';
 import MovieDetailsPage from './pages/MovieDetailsPage';
 import BookDetailsPage from './pages/BookDetailsPage';
 import NotFoundPage from './pages/NotFoundPage';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
+import ProfilePage from './pages/ProfilePage';
 import { RecommendationProvider } from './context/RecommendationContext';
 import IndianCinemaPage from './pages/IndianCinemaPage';
 import IndianLiteraturePage from './pages/IndianLiteraturePage';
+import TestApi from './components/common/TestApi';
 
 // Create a future flags configuration for React Router
 const router = {
@@ -35,6 +39,10 @@ function AnimatedRoutes() {
         <Route path="/books/:id" element={<BookDetailsPage />} />
         <Route path="/indian-cinema" element={<IndianCinemaPage />} />
         <Route path="/indian-literature" element={<IndianLiteraturePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/test-api" element={<TestApi />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AnimatePresence>

@@ -1,24 +1,63 @@
 import axios from 'axios';
 import { Movie } from '../types/movie';
 
+// TMDB API Configuration
 const TMDB_API_KEY = 'a2d5b9e3da10dad4af724bfccab52310';
 const TMDB_API_URL = 'https://api.themoviedb.org/3';
 
-// Get popular movies
-export const getPopularMovies = async (): Promise<Movie[]> => {
+// Map our language codes to TMDB language codes
+const mapToTMDBCode = (language: string): string => {
+  const languageMap: Record<string, string> = {
+    'hi': 'hi-IN', // Hindi
+    'ta': 'ta-IN', // Tamil
+    'te': 'te-IN', // Telugu
+    'kn': 'kn-IN', // Kannada
+    'ml': 'ml-IN', // Malayalam
+    'bn': 'bn-IN', // Bengali
+    'mr': 'mr-IN', // Marathi
+    'gu': 'gu-IN', // Gujarati
+    'pa': 'pa-IN', // Punjabi
+    'en': 'en-US'  // English
+  };
+  return languageMap[language] || 'en-US';
+};
+
+// Get popular movies with optional language filter
+export const getPopularMovies = async (language?: string): Promise<Movie[]> => {
   try {
-    const response = await axios.get(`${TMDB_API_URL}/movie/popular`, {
-      params: {
-        api_key: TMDB_API_KEY,
-        language: 'en-US',
-        page: 1
+    const params: any = {
+      api_key: TMDB_API_KEY,
+      page: 1,
+      region: 'IN',
+      sort_by: 'popularity.desc',
+      include_adult: false,
+      include_video: false,
+      with_original_language: language || undefined
+    };
+
+    // Add language parameter if specified
+    if (language) {
+      params.language = mapToTMDBCode(language);
+    }
+
+    console.log('Fetching movies with params:', params);
+    
+    const response = await axios.get(`${TMDB_API_URL}/discover/movie`, {
+      params,
+      paramsSerializer: (params) => {
+        return Object.entries(params)
+          .filter(([_, value]) => value !== undefined)
+          .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
+          .join('&');
       }
     });
-    
-    if (!response.data || !response.data.results) {
-      throw new Error('Invalid response format from TMDB API');
+
+    if (!response.data?.results) {
+      console.error('Invalid response format from TMDB API:', response.data);
+      return [];
     }
     
+    console.log(`Fetched ${response.data.results.length} movies`);
     return response.data.results;
   } catch (error: any) {
     // Handle specific axios errors
